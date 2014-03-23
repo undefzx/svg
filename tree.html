@@ -1,0 +1,252 @@
+<html>
+<head>
+</head>
+<body>
+	<div id="drawing"></div>
+    <script src="./svg.js" type="text/javascript" charset="utf-8"></script>
+<script>
+"use strict";
+function point(x, y){
+	draw.rect(10, 10).fill('red').move(x, y)
+}
+
+// create svg drawing paper
+function range_rand(min, max){
+	return Math.random() * (max - min) + min;
+}
+
+function floor(x){return Math.floor(x);};
+Math.radians = function(degrees) {
+	  return degrees * Math.PI / 180;
+};
+var width = 1200;
+var height = 800;
+var foliage = [];
+var draw = SVG('drawing').size(width, height).fixSubPixelOffset();
+
+draw_sky();
+draw_sun();
+draw_clouds();
+draw_mountains();
+draw_grass(height - 30);
+draw_grass(height - 20);
+draw_tree();
+draw_grass(height - 10);
+draw_grass(height);
+
+// CLOUDS
+
+
+function draw_clouds(){
+	draw_cloud();
+}
+
+function animate_cloud(set){
+	var timeout = 200000;
+	set.each(function(i) {
+		this.animate(timeout).center(this.attr('cx') + width + 1000, this.attr('cy'));
+	});
+	setTimeout(function(){
+		set.each(function(i) {
+			this.attr('cx', this.attr('cx') - width - 1000);
+		});
+		animate_cloud(set);
+	}, timeout);
+}
+
+function draw_cloud(){
+	var set = draw.set();
+	var x = -200,
+		y = range_rand(height*0.1, height*0.4);
+	draw_cloud_element(set, x, y, 50, 50);
+	animate_cloud(set);
+}
+
+function draw_cloud_element(set, xLast, yLast, rLast, lLast){
+	rLast = (rLast || 50);
+	lLast = lLast || Math.random()*25+75;
+	var x = (xLast || 250) + range_rand(-rLast*0.3, rLast*0.3),
+		y = (yLast || 250) + range_rand(-rLast*0.3, rLast*0.3),
+		r = range_rand(rLast*0.9, rLast*1.1),
+		l = range_rand(lLast*0.9, lLast*1.2);
+/*
+	if(x-r < 0)
+		x = r+1;
+	else if (x+r > width)
+		x = width-r-1;
+	if(y-r < 0)
+		y = r+1;
+	else if (y+r > height)
+		y = height-r-1;
+	if(r <= 0)
+		return;
+*/
+	if(l<0)
+		l=0;
+	else if(l>100)
+		l=100;
+
+	var cloud = draw.circle(r);
+	cloud.center(x, y).fill('white').opacity(l/100);
+	set.add(cloud);
+	if(Math.random() < 0.01)
+		return;
+	draw_cloud_element(set, x, y, r, l)
+}
+
+// ANIMATE FOLIAGE
+
+function animate_foliage(){
+	setTimeout(function(){
+		var o = foliage[floor(range_rand(0, foliage.length))];
+		if(!o.a){
+			var speed = floor(range_rand(10000, 20000));
+			o.a = true;
+			o.l.animate(speed).move(o.x + 100, height);
+			setTimeout(function(){
+				o.a = false;
+				o.l.move(o.x, o.y);
+				o.l.opacity(0);
+				o.l.animate(1000).opacity(0.7);
+			}, speed + 5000);
+		}
+		animate_foliage();
+	}, floor(range_rand(2000, 3000)));
+}
+
+
+// GRASS
+
+function draw_grass(y){
+	var color = ['#34994F', '#31994D', '#2E8F48'];
+	for(var x = 0; x <= width; x += 2){
+		var w = range_rand(4,7),
+			h = range_rand(10, 30),
+			cx = floor(w/2) + x,
+			cy = h + y;
+		draw.rect(w, h).move(x, y - h).fill(color[floor(range_rand(0, color.length))]).opacity(0.7)
+		.rotate(range_rand(-10,20), cx, cy);
+	}
+}
+
+
+// SUN
+
+function draw_sun(){
+	draw.circle(150).center(width*0.7, height*0.3).fill('#F5E162');
+}
+
+
+// SKY
+
+function draw_sky(){
+	draw.rect(width, height).fill('#89BAFA');
+}
+
+
+// MOUNTAINS
+
+function draw_mountains(){
+	draw_mountain(height * 0.65, 1, 'white');
+	draw_mountain(height * 0.6, 1, '#DBD4CC');
+	draw_mountain(height * 0.7, 1, '#BFB5A8');
+	draw_mountain(height * 0.8, -1, '#918A81');
+	draw_mountain(height * 0.9, -2, '#75706B');
+}
+
+function draw_mountain(y, dy, color){
+	var m = [];
+	m.push([0, height]);
+	for(var x = 0; x < width; x += 20){
+		m.push([x, y]);
+		y += range_rand(-15, 15) + dy;
+	}
+	m.push([width, y]);
+	m.push([width, height]);
+	draw.polyline(m).fill(color);
+}
+
+
+// TREE
+
+function draw_branch(w, h, x, y, angle, depth){
+	depth--;
+	var cx = floor(w/2) + x;
+	var cy = h + y;
+	if(!depth){
+		return;
+	}
+	draw.rect(w, h).fill('#222').move(x, y).rotate(angle, cx, cy);
+	draw_next_branch(w, h, x, y, angle, depth);
+	if(depth < 5){
+		for(var i = 0; i < 30; i++){
+			var p = next_start_point(w, h, x, y + range_rand(0, h), angle, null, h + y);
+			draw_leaf(p.x + range_rand(-20, 20), p.y + range_rand(-20, 20));
+		}
+	}
+}
+
+function next_start_point(w, h, x, y, angle, cx, cy){
+	if(typeof(cx) === 'undefined' || !cx){
+		cx = floor(w/2) + x;
+	}
+	if(typeof(cy) === 'undefined' || !cy){
+		cy = floor(h) + y;
+	}
+	var a = Math.radians(angle);
+	var xrot = cx + Math.cos(a) * (x + floor(w/2) - cx) - Math.sin(a) * (y + w/2 - cy)
+	var yrot = cy + Math.sin(a) * (x + floor(w/2) - cx) + Math.cos(a) * (y + w/2 - cy)
+	return {'x': xrot, 'y': yrot};
+}
+
+function draw_tree(){
+	var w = 30;
+	var h = 150;
+	var x = floor(width/2);
+	var y = height - h;
+	var angle = 0;
+	draw_branch(w, h, x, y, angle, 9);
+	animate_foliage();
+}
+
+function draw_next_branch(w, h, x, y, angle, depth){
+	var p = next_start_point(w, h, x, y, angle);
+	var branches = 2;
+	if(depth <= 2){
+		branches = 1;
+	}
+	for(var i = 0; i < branches; i++){
+		var nw = w*range_rand(0.5, 0.7);
+		var nh = h*range_rand(0.8, 0.9);
+		var nx = p.x - nw/2;
+		var ny = p.y - nh;
+		var min = -30;
+		var max = 30;
+		if(i == 0 && branches >= 2){
+			max = -15;
+		}
+		else if(i == 1 && branches >= 2){
+			min = 15;
+		}
+		else if(branches == 1){
+			min = -30;
+			max = 30;
+		}
+		var na = angle + range_rand(min, max);
+		draw_branch(nw, nh, nx, ny, na, depth);
+	}
+}
+
+function leaf(x, y){
+	var color = ['#F56EAF', '#F7A8CE', '#FA89C0'];
+	var leaf = draw.circle(range_rand(10, 20)).center(x, y).fill(color[floor(range_rand(0, color.length))]).opacity(0.7);
+	foliage.push({'l': leaf, 'a': false, 'x': x, 'y': y});
+}
+
+function draw_leaf(x, y){
+	leaf(x, y);
+}
+
+</script>
+</body>
+</html>
